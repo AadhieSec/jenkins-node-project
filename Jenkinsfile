@@ -8,6 +8,10 @@ pipeline {
         EC2_HOST = "13.50.105.72"
         EC2_USER = "ubuntu"
     }
+    
+    tools {
+       nodejs 'Node26'
+    }
 
     stages {
 
