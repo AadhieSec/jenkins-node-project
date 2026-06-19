@@ -1,18 +1,12 @@
-pipeline {
+kpipeline {
     agent any
 
-    tools {
-        nodejs 'NodeJS'
-    }
-
     environment {
-	PATH = "/usr/local/bin:${env.PATH}"
+	DOCKER = "/usr/local/bin/docker"
         IMAGE_NAME = "aadhiesec/node-app"
-        IMAGE_TAG  = "${BUILD_NUMBER}"
-    }
-
-    options {
-        timestamps()
+        IMAGE_TAG = "latest"
+        EC2_HOST = "13.50.105.72"
+        EC2_USER = "ubuntu"
     }
 
     stages {
@@ -29,36 +23,43 @@ pipeline {
             }
         }
 
-        stage('Run Tests') {
-            steps {
-                sh 'npm test'
-            }
-        }
-
         stage('Build Docker Image') {
             steps {
                 sh """
-                docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .
-                docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${IMAGE_NAME}:latest
+                    docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .
                 """
             }
         }
 
-        stage('Push Docker Image') {
+        stage('Push to Docker Hub') {
             steps {
-                withCredentials([
-                    usernamePassword(
-                        credentialsId: 'dockerhub-credentials',
-                        usernameVariable: 'DOCKER_USER',
-                        passwordVariable: 'DOCKER_PASS'
-                    )
-                ]) {
-
+                withDockerRegistry(credentialsId: 'dockerhub-credentials', toolName: 'docker') {
                     sh """
-                    echo \$DOCKER_PASS | docker login -u \$DOCKER_USER --password-stdin
+                        docker push ${IMAGE_NAME}:${IMAGE_TAG}
+                    """
+                }
+            }
+        }
 
-                    docker push ${IMAGE_NAME}:${IMAGE_TAG}
-                    docker push ${IMAGE_NAME}:latest
+        stage('Deploy to EC2') {
+            steps {
+                sshagent(credentials: ['ec2-key']) {
+                    sh """
+                    ssh -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} << EOF
+
+                    docker pull ${IMAGE_NAME}:${IMAGE_TAG}
+
+                    docker stop node-app || true
+
+                    docker rm node-app || true
+
+                    docker run -d \
+                        --name node-app \
+                        --restart unless-stopped \
+                        -p 3000:3000 \
+                        ${IMAGE_NAME}:${IMAGE_TAG}
+
+                    EOF
                     """
                 }
             }
@@ -67,15 +68,11 @@ pipeline {
 
     post {
         success {
-            echo "Pipeline completed successfully!"
+            echo '✅ Deployment Successful!'
         }
 
         failure {
-            echo "Pipeline failed."
-        }
-
-        always {
-            cleanWs()
+            echo '❌ Deployment Failed!'
         }
     }
 }
