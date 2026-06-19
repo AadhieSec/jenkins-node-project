@@ -1,11 +1,16 @@
 pipeline {
     agent any
 
+    tools {
+        nodejs 'NodeJS'
+    }
+
     stages {
 
-        stage('Checkout') {
+        stage('Check Node') {
             steps {
-                echo "Source code checked out from GitHub"
+                sh 'node -v'
+                sh 'npm -v'
             }
         }
 
@@ -15,12 +20,11 @@ pipeline {
             }
         }
 
-        stage('Run Application Test') {
+        stage('Run Tests') {
             steps {
                 sh 'npm test'
             }
         }
-
     }
 
     post {
