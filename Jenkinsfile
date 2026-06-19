@@ -36,7 +36,7 @@ pipeline {
             echo 'Pipeline failed!'
         }
 	always {
-	    echo 'pipeline finished'
+	    echo 'pipeline finished!'
 	}	
     }
 }
