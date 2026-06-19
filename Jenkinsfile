@@ -1,4 +1,4 @@
-pipeline {
+kpipeline {
     agent any
 
     tools {
@@ -6,7 +6,6 @@ pipeline {
     }
 
     environment {
-	PATH = "/usr/local/bin:${env.PATH}"
         IMAGE_NAME = "aadhiesec/node-app"
         IMAGE_TAG  = "${BUILD_NUMBER}"
     }
@@ -38,8 +37,8 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 sh """
-                    docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .
-                    docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${IMAGE_NAME}:latest
+                docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .
+                docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${IMAGE_NAME}:latest
                 """
             }
         }
@@ -48,19 +47,18 @@ pipeline {
             steps {
                 withCredentials([
                     usernamePassword(
-                        credentialsId: 'dockerhub-credentials',
+                        credentialsId: 'dockerhub',
                         usernameVariable: 'DOCKER_USER',
                         passwordVariable: 'DOCKER_PASS'
                     )
                 ]) {
-                    sh '''
-                        echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
 
-                        docker push '"$IMAGE_NAME"':'"$IMAGE_TAG"'
-                        docker push '"$IMAGE_NAME"':latest
+                    sh """
+                    echo \$DOCKER_PASS | docker login -u \$DOCKER_USER --password-stdin
 
-                        docker logout
-                    '''
+                    docker push ${IMAGE_NAME}:${IMAGE_TAG}
+                    docker push ${IMAGE_NAME}:latest
+                    """
                 }
             }
         }
@@ -68,7 +66,7 @@ pipeline {
 
     post {
         success {
-            echo "Pipeline completed successfully."
+            echo "Pipeline completed successfully!"
         }
 
         failure {
