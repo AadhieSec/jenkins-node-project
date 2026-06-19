@@ -5,8 +5,11 @@ pipeline {
         PATH = "/usr/local/bin:${env.PATH}"
         IMAGE_NAME = "aadhiesec/node-app"
         IMAGE_TAG = "latest"
+
         EC2_HOST = "13.50.105.72"
         EC2_USER = "ubuntu"
+
+        APP_PORT = "3000"
     }
 
     tools {
@@ -24,7 +27,9 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 sh """
-                    docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .
+                    docker build \
+                      --platform linux/amd64 \
+                      -t ${IMAGE_NAME}:${IMAGE_TAG} .
                 """
             }
         }
@@ -54,19 +59,37 @@ pipeline {
                 sshagent(credentials: ['ec2-key']) {
                     sh """
 ssh -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} << EOF
+set -e
 
+echo "Pulling latest image..."
 docker pull ${IMAGE_NAME}:${IMAGE_TAG}
 
+echo "Stopping old container..."
 docker stop node-app || true
 docker rm node-app || true
 
+echo "Starting new container..."
 docker run -d \
     --name node-app \
     --restart unless-stopped \
-    -p 3000:3000 \
+    -p ${APP_PORT}:3000 \
     ${IMAGE_NAME}:${IMAGE_TAG}
 
+echo "Cleaning unused images..."
 docker image prune -f
+
+echo ""
+echo "Running containers:"
+docker ps
+
+sleep 5
+
+echo ""
+echo "===================================="
+echo "Deployment Successful!"
+echo "Application URL:"
+echo "http://${EC2_HOST}:${APP_PORT}"
+echo "===================================="
 
 EOF
 """
@@ -77,11 +100,12 @@ EOF
 
     post {
         success {
-            echo '✅ Deployment Successful!'
+            echo "✅ Deployment Successful!"
+            echo "🌐 Application URL: http://${EC2_HOST}:${APP_PORT}"
         }
 
         failure {
-            echo '❌ Deployment Failed!'
+            echo "❌ Deployment Failed!"
         }
 
         always {
