@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-	DOCKER = "/usr/local/bin/docker"
+	PATH = "/usr/local/bin:${env.PATH}"
         IMAGE_NAME = "aadhiesec/node-app"
         IMAGE_TAG = "latest"
         EC2_HOST = "13.50.105.72"
