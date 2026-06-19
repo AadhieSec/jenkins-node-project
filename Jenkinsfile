@@ -6,6 +6,7 @@ pipeline {
     }
 
     environment {
+	PATH = "/usr/local/bin:${env.PATH}"
         IMAGE_NAME = "aadhiesec/node-app"
         IMAGE_TAG  = "${BUILD_NUMBER}"
     }
